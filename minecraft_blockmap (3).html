@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minecraft Circle Tool</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap');
+  :root {
+    --bg:#0a0c0f; --panel:#0f1318; --border:#1e2a38;
+    --accent:#00d4ff; --accent2:#ff6b00; --accent3:#00ff9d;
+    --text:#c8d8e8; --text-dim:#4a6278;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; min-height:100vh; display:flex; flex-direction:column; }
+
+  /* HEADER */
+  header {
+    padding:12px 20px; border-bottom:1px solid var(--border);
+    background:var(--panel); display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  header h1 { font-size:18px; font-weight:700; letter-spacing:3px; color:var(--accent); flex:1; }
+  .lang-btn {
+    background:transparent; border:1px solid var(--border); color:var(--text-dim);
+    font-family:'Rajdhani',sans-serif; font-size:12px; letter-spacing:2px;
+    padding:5px 12px; cursor:pointer; transition:all 0.2s; text-transform:uppercase;
+  }
+  .lang-btn:hover, .lang-btn.active { border-color:var(--accent); color:var(--accent); }
+  .credit {
+    font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--text-dim);
+    letter-spacing:1px; white-space:nowrap;
+  }
+  .credit span { color:var(--accent3); }
+
+  /* CONTROLS */
+  .controls {
+    display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;
+    padding:12px 20px; background:var(--panel); border-bottom:1px solid var(--border);
+  }
+  .ctrl { display:flex; flex-direction:column; gap:3px; }
+  label { font-size:10px; letter-spacing:2px; color:var(--text-dim); text-transform:uppercase; }
+  input[type=number] {
+    background:#070a0d; border:1px solid var(--border); color:var(--accent);
+    font-family:'Share Tech Mono',monospace; font-size:15px; padding:6px 9px; outline:none; width:85px;
+  }
+  input[type=number]:focus { border-color:var(--accent); }
+  input[type=range] { accent-color:var(--accent); width:90px; margin-top:6px; }
+  .btn {
+    background:transparent; border:1px solid var(--accent); color:var(--accent);
+    font-family:'Rajdhani',sans-serif; font-size:12px; letter-spacing:2px;
+    text-transform:uppercase; padding:7px 13px; cursor:pointer; transition:all 0.2s; align-self:flex-end;
+  }
+  .btn:hover { background:var(--accent); color:var(--bg); }
+  .btn.orange { border-color:var(--accent2); color:var(--accent2); }
+  .btn.orange:hover { background:var(--accent2); color:var(--bg); }
+  .btn.green { border-color:var(--accent3); color:var(--accent3); }
+  .btn.green:hover { background:var(--accent3); color:var(--bg); }
+
+  /* LAYOUT */
+  .main { display:flex; flex:1; overflow:hidden; }
+  .sidebar {
+    width:255px; min-width:255px; background:var(--panel);
+    border-right:1px solid var(--border); padding:14px;
+    overflow-y:auto; display:flex; flex-direction:column; gap:12px;
+  }
+  .section-title {
+    font-size:10px; letter-spacing:3px; color:var(--text-dim);
+    text-transform:uppercase; border-bottom:1px solid var(--border);
+    padding-bottom:4px; margin-bottom:6px;
+  }
+  .stat { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid #0f1318; }
+  .stat-label { font-size:12px; color:var(--text-dim); }
+  .stat-value { font-family:'Share Tech Mono',monospace; font-size:13px; color:var(--accent); }
+  .ring-row { display:flex; align-items:center; gap:7px; margin-bottom:7px; }
+  .ring-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .ring-input {
+    width:62px; background:#070a0d; border:1px solid var(--border);
+    color:var(--accent3); font-family:'Share Tech Mono',monospace; font-size:13px; padding:4px 7px; outline:none;
+  }
+  .ring-label { font-size:11px; color:var(--text-dim); flex:1; }
+  .small-btn {
+    background:transparent; border:1px solid var(--border); color:var(--text-dim);
+    font-family:'Rajdhani',sans-serif; font-size:11px; padding:3px 8px; cursor:pointer;
+  }
+  .small-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .legend { display:flex; flex-direction:column; gap:5px; }
+  .legend-item { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--text-dim); }
+  .legend-block { width:14px; height:14px; flex-shrink:0; }
+  .canvas-area {
+    flex:1; overflow:auto; padding:16px;
+    display:flex; flex-direction:column; align-items:flex-start; gap:10px;
+  }
+  canvas { image-rendering:pixelated; image-rendering:crisp-edges; border:1px solid var(--border); cursor:crosshair; }
+  .info-bar { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text-dim); display:flex; gap:20px; flex-wrap:wrap; }
+  .info-bar span { color:var(--accent); }
+  ::-webkit-scrollbar { width:4px; height:4px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border); }
+
+  /* TUTORIAL MODAL */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.85);
+    display:flex; align-items:center; justify-content:center;
+    z-index:100; padding:20px;
+  }
+  .modal-overlay.hidden { display:none; }
+  .modal {
+    background:var(--panel); border:1px solid var(--border);
+    max-width:560px; width:100%; max-height:90vh; overflow-y:auto;
+    padding:28px 32px; position:relative;
+  }
+  .modal h2 { font-size:20px; letter-spacing:3px; color:var(--accent); margin-bottom:20px; text-transform:uppercase; }
+  .modal-close {
+    position:absolute; top:14px; right:16px;
+    background:transparent; border:none; color:var(--text-dim);
+    font-size:22px; cursor:pointer; line-height:1;
+  }
+  .modal-close:hover { color:var(--accent); }
+  .tutorial-step {
+    display:flex; gap:14px; margin-bottom:18px; align-items:flex-start;
+  }
+  .step-num {
+    min-width:28px; height:28px; background:var(--accent);
+    color:var(--bg); font-weight:700; font-size:14px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .step-content h3 { font-size:14px; font-weight:700; color:var(--text); margin-bottom:4px; }
+  .step-content p { font-size:12px; color:var(--text-dim); line-height:1.6; }
+  .step-content code {
+    font-family:'Share Tech Mono',monospace; background:#070a0d;
+    color:var(--accent3); padding:1px 5px; font-size:11px;
+  }
+  .modal-footer { margin-top:22px; text-align:right; }
+</style>
+</head>
+<body>
+
+<!-- TUTORIAL MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 id="tut-title">⬡ How to use</h2>
+    <div id="tut-steps"></div>
+    <div class="modal-footer">
+      <button class="btn green" onclick="closeModal()" id="tut-btn-start">Let's go →</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <h1 id="h-title">⬡ MINECRAFT CIRCLE TOOL</h1>
+  <button class="lang-btn active" id="btn-es" onclick="setLang('es')">ES</button>
+  <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+  <button class="btn green" id="btn-help" onclick="openModal()" style="padding:5px 12px;font-size:11px;">?  Help</button>
+  <div class="credit">Designed by <span>maintel</span> · Powered by <span>Claude</span></div>
+</header>
+
+<div class="controls">
+  <div class="ctrl">
+    <label id="lbl-diam">Diameter</label>
+    <input type="number" id="diameter" value="50" min="3" max="500">
+  </div>
+  <div class="ctrl">
+    <label>Center X</label>
+    <input type="number" id="centerX" value="0">
+  </div>
+  <div class="ctrl">
+    <label>Center Z</label>
+    <input type="number" id="centerZ" value="0">
+  </div>
+  <div class="ctrl">
+    <label id="lbl-zoom">Zoom</label>
+    <input type="range" id="zoom" min="2" max="20" value="8">
+    <span id="zoom-val" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim)">8px</span>
+  </div>
+  <div class="ctrl">
+    <label id="lbl-radios">Radii</label>
+    <input type="number" id="numRadios" value="0" min="0" max="32" style="width:65px">
+  </div>
+  <div class="ctrl">
+    <label id="lbl-angle">Start angle</label>
+    <input type="number" id="startAngle" value="0" min="0" max="359" style="width:65px">
+  </div>
+  <button class="btn orange" id="btn-export" onclick="exportPNG()">Export PNG</button>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div>
+      <div class="section-title" id="s-measurements">📐 Measurements</div>
+      <div class="stat"><span class="stat-label" id="sl-radius">Radius</span><span class="stat-value" id="s-r">-</span></div>
+      <div class="stat"><span class="stat-label" id="sl-circ">Circumference</span><span class="stat-value" id="s-c">-</span></div>
+      <div class="stat"><span class="stat-label" id="sl-area">Area</span><span class="stat-value" id="s-a">-</span></div>
+      <div class="stat"><span class="stat-label" id="sl-border">Border blocks</span><span class="stat-value" id="s-b">-</span></div>
+    </div>
+    <div>
+      <div class="section-title" id="s-rings">⭕ Concentric Rings</div>
+      <div id="rings-list">
+        <div class="ring-row">
+          <div class="ring-dot" style="background:#00ff9d"></div>
+          <span class="ring-label" id="rl-0">Center</span>
+          <input class="ring-input" type="number" value="10">
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:7px">
+        <button class="small-btn" id="btn-add-ring" onclick="addRing()">+ Ring</button>
+        <button class="small-btn" id="btn-rem-ring" onclick="removeRing()">- Ring</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-title" id="s-radii-coords">📏 Radii Coordinates</div>
+      <div id="radios-coords" style="font-family:'Share Tech Mono',monospace;font-size:10px;line-height:2;max-height:160px;overflow-y:auto;"></div>
+    </div>
+    <div>
+      <div class="section-title" id="s-legend">🗺️ Legend</div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div>
+      <div class="section-title" id="s-cursor">🖱️ Cursor</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:12px;line-height:2.2;">
+        X: <span id="mx" style="color:var(--accent)">-</span><br>
+        Z: <span id="mz" style="color:var(--accent)">-</span><br>
+        <span id="sl-dist">Dist</span>: <span id="md" style="color:var(--accent3)">-</span> <span id="sl-blocks">blocks</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <canvas id="canvas"></canvas>
+    <div class="info-bar">
+      <div id="info-cell">Each cell = <span>1 block</span></div>
+      <div id="info-nums">Numbers = consecutive blocks on border</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const RING_COLORS = ['#00ff9d','#00d4ff','#ff6b00','#ff0080','#ffe000','#a855f7','#ff3333','#00ffff'];
+
+// ── i18n ─────────────────────────────────────────────────────────────────────
+const T = {
+  es: {
+    title:'⬡ MINECRAFT CIRCLE TOOL',
+    help:'?  Ayuda',
+    lbl_diam:'Diámetro', lbl_zoom:'Zoom', lbl_radios:'Radios', lbl_angle:'Ángulo inicio',
+    btn_export:'Exportar PNG',
+    s_measurements:'📐 Medidas', sl_radius:'Radio', sl_circ:'Circunferencia',
+    sl_area:'Área', sl_border:'Bloques en borde',
+    s_rings:'⭕ Anillos concéntricos',
+    rl_center:'Centro', rl_ring:'Anillo',
+    btn_add_ring:'+ Anillo', btn_rem_ring:'- Anillo',
+    s_radii_coords:'📏 Coordenadas de radios',
+    s_legend:'🗺️ Leyenda', s_cursor:'🖱️ Cursor',
+    sl_dist:'Dist', sl_blocks:'bloques',
+    info_cell:'Cada celda = 1 bloque', info_nums:'Números = bloques consecutivos en borde',
+    leg_border:'Borde principal', leg_radii:'Radios (1 bloque)',
+    tut_title:'⬡ Cómo usar esta herramienta',
+    tut_btn:'¡Entendido →',
+    tut_steps:[
+      {title:'Configura tu círculo', body:'Ingresa el <code>Diámetro</code> que quieres en bloques. Luego ingresa las coordenadas <code>X</code> y <code>Z</code> del centro en tu mundo de Minecraft. Si no sabes cuál es el centro, puedes dejarlo en 0,0.'},
+      {title:'Lee el mapa de bloques', body:'Cada celda del mapa = 1 bloque de Minecraft. Los bloques <span style="color:#00d4ff">azules</span> son el borde del círculo. Los números encima/debajo indican cuántos bloques consecutivos debes poner en esa fila.'},
+      {title:'Usa los anillos concéntricos', body:'Añade anillos para dividir el interior en zonas. Ingresa el <code>radio</code> de cada anillo. Útil para escaleras helicoidales, jardines o zonas diferenciadas.'},
+      {title:'Añade radios', body:'Los radios dividen el círculo en sectores como una pizza. Útil para saber la dirección de escaleras o divisiones de la construcción. Se generan con línea de <strong>1 solo bloque</strong> de ancho.'},
+      {title:'Exporta e imprime', body:'Usa <code>Exportar PNG</code> para guardar el mapa y tenerlo de referencia mientras construyes. También puedes pasar el cursor por encima para ver las coordenadas exactas de cada bloque.'},
+    ]
+  },
+  en: {
+    title:'⬡ MINECRAFT CIRCLE TOOL',
+    help:'?  Help',
+    lbl_diam:'Diameter', lbl_zoom:'Zoom', lbl_radios:'Radii', lbl_angle:'Start angle',
+    btn_export:'Export PNG',
+    s_measurements:'📐 Measurements', sl_radius:'Radius', sl_circ:'Circumference',
+    sl_area:'Area', sl_border:'Border blocks',
+    s_rings:'⭕ Concentric Rings',
+    rl_center:'Center', rl_ring:'Ring',
+    btn_add_ring:'+ Ring', btn_rem_ring:'- Ring',
+    s_radii_coords:'📏 Radii Coordinates',
+    s_legend:'🗺️ Legend', s_cursor:'🖱️ Cursor',
+    sl_dist:'Dist', sl_blocks:'blocks',
+    info_cell:'Each cell = 1 block', info_nums:'Numbers = consecutive blocks on border',
+    leg_border:'Main border', leg_radii:'Radii (1 block)',
+    tut_title:'⬡ How to use this tool',
+    tut_btn:'Got it →',
+    tut_steps:[
+      {title:'Set up your circle', body:'Enter the <code>Diameter</code> you want in blocks. Then enter the <code>X</code> and <code>Z</code> coordinates of your circle\'s center in your Minecraft world. If you\'re not sure, you can leave it at 0,0.'},
+      {title:'Read the block map', body:'Each cell = 1 Minecraft block. <span style="color:#00d4ff">Blue</span> blocks form the circle border. The numbers above/below each run tell you how many consecutive blocks to place in that row.'},
+      {title:'Use concentric rings', body:'Add rings to divide the interior into zones. Enter the <code>radius</code> for each ring. Great for spiral staircases, gardens, or distinct interior areas.'},
+      {title:'Add radii', body:'Radii split the circle into sectors like a pizza slice. Useful for planning staircase directions or building divisions. Each radius is exactly <strong>1 block</strong> wide.'},
+      {title:'Export and build', body:'Use <code>Export PNG</code> to save your map as a reference while building. Hover over the map to see exact Minecraft coordinates for any block.'},
+    ]
+  }
+};
+
+let lang = 'es';
+
+function setLang(l) {
+  lang = l;
+  document.getElementById('btn-es').classList.toggle('active', l==='es');
+  document.getElementById('btn-en').classList.toggle('active', l==='en');
+  const t = T[l];
+  document.getElementById('h-title').textContent = t.title;
+  document.getElementById('btn-help').textContent = t.help;
+  document.getElementById('lbl-diam').textContent = t.lbl_diam;
+  document.getElementById('lbl-zoom').textContent = t.lbl_zoom;
+  document.getElementById('lbl-radios').textContent = t.lbl_radios;
+  document.getElementById('lbl-angle').textContent = t.lbl_angle;
+  document.getElementById('btn-export').textContent = t.btn_export;
+  document.getElementById('s-measurements').textContent = t.s_measurements;
+  document.getElementById('sl-radius').textContent = t.sl_radius;
+  document.getElementById('sl-circ').textContent = t.sl_circ;
+  document.getElementById('sl-area').textContent = t.sl_area;
+  document.getElementById('sl-border').textContent = t.sl_border;
+  document.getElementById('s-rings').textContent = t.s_rings;
+  document.getElementById('btn-add-ring').textContent = t.btn_add_ring;
+  document.getElementById('btn-rem-ring').textContent = t.btn_rem_ring;
+  document.getElementById('s-radii-coords').textContent = t.s_radii_coords;
+  document.getElementById('s-legend').textContent = t.s_legend;
+  document.getElementById('s-cursor').textContent = t.s_cursor;
+  document.getElementById('sl-dist').textContent = t.sl_dist;
+  document.getElementById('sl-blocks').textContent = t.sl_blocks;
+  document.getElementById('info-cell').innerHTML = t.info_cell.replace('1 block','<span>1 block</span>').replace('1 bloque','<span>1 bloque</span>');
+  document.getElementById('info-nums').textContent = t.info_nums;
+  // Ring labels
+  const ringRows = document.querySelectorAll('#rings-list .ring-label');
+  ringRows.forEach((el,i) => { el.textContent = i===0 ? t.rl_center : `${t.rl_ring} ${i}`; });
+  update();
+}
+
+function openModal() {
+  const t = T[lang];
+  document.getElementById('tut-title').textContent = t.tut_title;
+  document.getElementById('tut-btn-start').textContent = t.tut_btn;
+  document.getElementById('tut-steps').innerHTML = t.tut_steps.map((s,i)=>`
+    <div class="tutorial-step">
+      <div class="step-num">${i+1}</div>
+      <div class="step-content">
+        <h3>${s.title}</h3>
+        <p>${s.body}</p>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.add('hidden');
+}
+
+// ── Algorithms ───────────────────────────────────────────────────────────────
+// Minecraft-accurate circle algorithm matching Plotz behavior.
+// A block at grid position (x,z) is ON the border if its center is inside
+// the circle but at least one neighbor center is outside.
+function bresenhamCircle(r) {
+  const pts = new Set();
+  const r2 = r * r;
+  const rInt = Math.ceil(r);
+  for (let z = 0; z < rInt; z++) {
+    for (let x = 0; x < rInt; x++) {
+      // block center relative to circle center
+      const cx = x + 0.5, cz = z + 0.5;
+      const d2 = cx*cx + cz*cz;
+      if (d2 > r2) continue; // outside
+      const rightOut = (cx+1)*(cx+1) + cz*cz > r2;
+      const upOut    = cx*cx + (cz+1)*(cz+1) > r2;
+      if (rightOut || upOut) {
+        // mirror to all 4 quadrants
+        pts.add(`${x},${z}`);
+        pts.add(`${~x},${z}`);
+        pts.add(`${x},${~z}`);
+        pts.add(`${~x},${~z}`);
+      }
+    }
+  }
+  return pts;
+}
+
+function bresenhamLine(x0,z0,x1,z1){
+  const pts=[];
+  let dx=Math.abs(x1-x0),dz=Math.abs(z1-z0),sx=x0<x1?1:-1,sz=z0<z1?1:-1,err=dx-dz;
+  while(true){
+    pts.push([x0,z0]);
+    if(x0===x1&&z0===z1) break;
+    const e2=2*err;
+    if(e2>-dz){err-=dz;x0+=sx;}
+    if(e2<dx){err+=dx;z0+=sz;}
+  }
+  return pts;
+}
+
+function hexToRgba(hex,a){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function getRings(){
+  return Array.from(document.querySelectorAll('.ring-input'))
+    .map(i=>parseInt(i.value)||0).filter(v=>v>0).sort((a,b)=>a-b);
+}
+function getZoom(){ return parseInt(document.getElementById('zoom').value)||8; }
+
+// ── Draw ─────────────────────────────────────────────────────────────────────
+function update(){
+  const d   = parseInt(document.getElementById('diameter').value)||50;
+  const cx  = parseInt(document.getElementById('centerX').value)||0;
+  const cz  = parseInt(document.getElementById('centerZ').value)||0;
+  const zoom= getZoom();
+  const r   = d/2;
+  const rings = getRings();
+  const numR  = parseInt(document.getElementById('numRadios').value)||0;
+  const sa    = parseFloat(document.getElementById('startAngle').value)||0;
+  document.getElementById('zoom-val').textContent = zoom+'px';
+
+  document.getElementById('s-r').textContent = r.toFixed(1);
+  document.getElementById('s-c').textContent = Math.round(Math.PI*d);
+  document.getElementById('s-a').textContent = Math.round(Math.PI*r*r).toLocaleString();
+
+  const rInt = Math.ceil(r)+2;
+  const size = rInt*2+2;
+  const off  = rInt+1;
+
+  canvas.width  = size*zoom;
+  canvas.height = size*zoom;
+
+  const mainSet  = bresenhamCircle(r);
+  const ringSets = rings.map(rr=>bresenhamCircle(rr));
+
+  const radiusPixels = new Set();
+  const radiusData = [];
+  for(let i=0;i<numR;i++){
+    const angle=sa+(360/numR)*i;
+    const rad=angle*Math.PI/180;
+    const ex=Math.round(r*Math.sin(rad)), ez=Math.round(-r*Math.cos(rad));
+    radiusData.push({angle, ex:cx+ex, ez:cz+ez, lbx:ex, lbz:ez});
+    bresenhamLine(0,0,ex,ez).forEach(([x,z])=>radiusPixels.add(`${x},${z}`));
+  }
+
+  ctx.fillStyle='#05080b';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if(zoom>=4){
+    ctx.strokeStyle='#0d1520'; ctx.lineWidth=0.5;
+    for(let i=0;i<=size;i++){
+      ctx.beginPath();ctx.moveTo(i*zoom,0);ctx.lineTo(i*zoom,canvas.height);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(0,i*zoom);ctx.lineTo(canvas.width,i*zoom);ctx.stroke();
+    }
+  }
+
+  function drawBlock(bx,bz,color,alpha){
+    const px=(bx+off)*zoom,py=(bz+off)*zoom;
+    ctx.fillStyle=alpha<1?hexToRgba(color,alpha):color;
+    ctx.fillRect(px,py,zoom,zoom);
+    if(alpha>=1&&zoom>=3){ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(px,py,zoom,1);ctx.fillRect(px,py,1,zoom);}
+  }
+
+  // 1. Interior fill - use block center coords for accurate Minecraft positioning
+  for(let bz=-rInt;bz<=rInt;bz++){
+    for(let bx=-rInt;bx<=rInt;bx++){
+      // block center distance (same convention as circle algorithm)
+      const ccx = bx >= 0 ? bx+0.5 : bx+0.5;
+      const ccz = bz >= 0 ? bz+0.5 : bz+0.5;
+      const dist = Math.sqrt(ccx*ccx + ccz*ccz);
+      if(dist >= r) continue;
+      if(mainSet.has(`${bx},${bz}`)) continue; // skip border blocks
+      let color=null;
+      for(let i=rings.length-1;i>=0;i--){if(dist<rings[i]){color=RING_COLORS[i];break;}}
+      drawBlock(bx,bz,color||'#00d4ff',color?0.13:0.05);
+    }
+  }
+  // 2. Ring borders
+  ringSets.forEach((pts,i)=>pts.forEach(key=>{const[bx,bz]=key.split(',').map(Number);drawBlock(bx,bz,RING_COLORS[i],1);}));
+  // 3. Radii (inside main circle only)
+  radiusPixels.forEach(key=>{
+    if(mainSet.has(key))return;
+    const[bx,bz]=key.split(',').map(Number);
+    const ccx=bx+0.5, ccz=bz+0.5;
+    if(Math.sqrt(ccx*ccx+ccz*ccz)<r) drawBlock(bx,bz,'#ff0080',1);
+  });
+  // 4. Main border (always on top)
+  mainSet.forEach(key=>{const[bx,bz]=key.split(',').map(Number);drawBlock(bx,bz,'#00d4ff',1);});
+
+  // 5. Block count labels
+  if(zoom>=5){
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    const fs=Math.max(Math.round(zoom*0.55),7);
+    ctx.font=`bold ${fs}px Share Tech Mono,monospace`;
+    for(let bz=-rInt;bz<=rInt;bz++){
+      const row=[];
+      for(let bx=-rInt;bx<=rInt;bx++){if(mainSet.has(`${bx},${bz}`))row.push(bx);}
+      if(!row.length)continue;
+      const runs=[];let start=row[0],len=1;
+      for(let k=1;k<row.length;k++){if(row[k]===row[k-1]+1)len++;else{runs.push({start,len});start=row[k];len=1;}}
+      runs.push({start,len});
+      const isTop=bz<0;
+      runs.forEach(({start,len})=>{
+        const px=(start+off)*zoom+zoom/2, py=(bz+off)*zoom;
+        ctx.fillStyle=isTop?'#00ff9d':'#ff6b00';
+        ctx.fillText(String(len),px,isTop?py-fs*0.7:py+zoom+fs*0.7);
+      });
+    }
+  }
+
+  // 6. Center
+  const cpx=off*zoom+zoom/2,cpy=off*zoom+zoom/2;
+  ctx.strokeStyle='#00ff9d';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(cpx-zoom*2.5,cpy);ctx.lineTo(cpx+zoom*2.5,cpy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cpx,cpy-zoom*2.5);ctx.lineTo(cpx,cpy+zoom*2.5);ctx.stroke();
+  ctx.beginPath();ctx.arc(cpx,cpy,zoom*0.4,0,Math.PI*2);ctx.fillStyle='#00ff9d';ctx.fill();
+  if(zoom>=5){
+    ctx.fillStyle='#00ff9d';ctx.font=`bold ${zoom*0.6}px Share Tech Mono,monospace`;
+    ctx.textAlign='left';ctx.textBaseline='bottom';
+    ctx.fillText(`${cx},${cz}`,cpx+zoom*0.7,cpy-zoom*0.2);
+  }
+
+  // 7. Radius labels
+  if(zoom>=4){
+    radiusData.forEach((rd,i)=>{
+      const px=(rd.lbx+off)*zoom+zoom/2,py=(rd.lbz+off)*zoom+zoom/2;
+      ctx.fillStyle=RING_COLORS[i%8];
+      ctx.font=`bold ${Math.max(zoom*0.65,8)}px Rajdhani,sans-serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      const ox=Math.sign(rd.lbx)||1,oz=Math.sign(rd.lbz)||1;
+      ctx.fillText(`R${i+1}`,px+ox*zoom*1.9,py+oz*zoom*1.9);
+    });
+  }
+
+  // Stats
+  document.getElementById('s-b').textContent=mainSet.size;
+  document.getElementById('radios-coords').innerHTML=radiusData.map((rd,i)=>
+    `<span style="color:${RING_COLORS[i%8]}">R${i+1} ${rd.angle.toFixed(0)}°: ${cx},${cz} → ${rd.ex},${rd.ez}</span>`
+  ).join('<br>');
+
+  const t=T[lang];
+  const legendItems=[
+    {color:'#00d4ff',label:t.leg_border},
+    ...rings.map((rr,i)=>({color:RING_COLORS[i],label:`${i===0?t.rl_center:`${t.rl_ring} ${i}`} (r=${rr})`})),
+    ...(numR>0?[{color:'#ff0080',label:t.leg_radii}]:[]),
+  ];
+  document.getElementById('legend').innerHTML=legendItems.map(it=>
+    `<div class="legend-item"><div class="legend-block" style="background:${it.color}"></div><span>${it.label}</span></div>`
+  ).join('');
+
+  ctx.textAlign='left';ctx.textBaseline='alphabetic';
+}
+
+// Mouse
+canvas.addEventListener('mousemove',e=>{
+  const rect=canvas.getBoundingClientRect();
+  const zoom=getZoom();
+  const d=parseInt(document.getElementById('diameter').value)||50;
+  const cx=parseInt(document.getElementById('centerX').value)||0;
+  const cz=parseInt(document.getElementById('centerZ').value)||0;
+  const r=d/2,rInt=Math.ceil(r)+2,off=rInt+1;
+  const sx=canvas.width/rect.width,sz=canvas.height/rect.height;
+  const bx=Math.floor((e.clientX-rect.left)*sx/zoom)-off;
+  const bz=Math.floor((e.clientY-rect.top)*sz/zoom)-off;
+  document.getElementById('mx').textContent=cx+bx;
+  document.getElementById('mz').textContent=cz+bz;
+  document.getElementById('md').textContent=Math.sqrt(bx*bx+bz*bz).toFixed(1);
+});
+
+function addRing(){
+  const list=document.getElementById('rings-list');
+  const count=list.children.length;
+  if(count>=8)return;
+  const prev=parseInt(list.lastElementChild.querySelector('input').value)||10;
+  const t=T[lang];
+  const row=document.createElement('div');row.className='ring-row';
+  row.innerHTML=`<div class="ring-dot" style="background:${RING_COLORS[count]}"></div>
+    <span class="ring-label">${t.rl_ring} ${count}</span>
+    <input class="ring-input" type="number" value="${prev+10}">`;
+  list.appendChild(row);
+  row.querySelector('input').addEventListener('input',update);
+  update();
+}
+
+function removeRing(){
+  const list=document.getElementById('rings-list');
+  if(list.children.length>1){list.removeChild(list.lastElementChild);update();}
+}
+
+function exportPNG(){
+  const link=document.createElement('a');
+  link.download='minecraft_circle.png';
+  link.href=canvas.toDataURL('image/png');
+  link.click();
+}
+
+['diameter','centerX','centerZ','numRadios','startAngle','zoom'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',update);
+});
+document.querySelectorAll('.ring-input').forEach(i=>i.addEventListener('input',update));
+
+// Init
+setLang('es');
+openModal();
+</script>
+</body>
+</html>
